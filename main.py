@@ -1,5 +1,5 @@
 # ============= LIBRARIES =============
-import board
+import board # type: ignore
 import digitalio
 import usb_hid
 from adafruit_hid.keyboard import Keyboard
@@ -13,7 +13,7 @@ import adafruit_requests
 # COL1: ONAIR LIGHT GP13 (HASS CALL)  -  DESK LIGHTBAR GP15 (HASS CALL)
 # COL2: MIC SELECT  GP16 (F13 & F14)  -  MUTE ALL GP11 (F15 & F16)
 # COL4: DISCORD MODE GP18 & GP28 (F17 & F18) - DISCORD ACTION (F19)
-# COL5: CLIP MOMENT GP22 (F20) - RECORD GP26 (F21)
+# COL5: CLIP MOMENT GP22 (F20) - RECORD GP26 (F21 & F22)
 
 # DISCORD_STATE: 0 - OK, 1 - MUTE, 2 - DEAFEN
 
@@ -40,7 +40,6 @@ hass_headers = {
 hass_payload_desk_lightbar = {
     "entity_id": "switch.desk_tuya_lightbar"
 }
-
 hass_payload_onair_light= {
     "entity_id": "switch.nonexistent"
 }
@@ -50,7 +49,7 @@ hass_payload_onair_light= {
 # ========== GLOBAL VARIABLES =========
 print("Creating global variables...")
 
-counter = 0
+counter_ms = 0
 
 
 
@@ -100,7 +99,12 @@ clip_button = digitalio.DigitalInOut(board.GP22)
 clip_button.direction = digitalio.Direction.INPUT
 clip_button.pull = digitalio.Pull.UP
 
-# TODO recording button + light
+rec_button = digitalio.DigitalInOut(board.GP26)
+rec_button.direction = digitalio.Direction.INPUT
+rec_button.pull = digitalio.Pull.UP
+
+rec_button_light = digitalio.DigitalInOut(board.GP9)
+rec_button_light.direction = digitalio.Direction.OUTPUT
 
 # =============== STATES ==============
 print("Setting input states...")
@@ -117,7 +121,11 @@ discord_action_button_state = discord_action_button.value
 
 discord_mute_switch_state = discord_mute_switch.value
 discord_deaf_switch_state = discord_deaf_switch.value
+
 clip_button_state = clip_button.value
+rec_button_state = clip_button.value
+
+rec_button_light_blinking = False
 
 discord_state = 1
 
@@ -142,11 +150,9 @@ requests = adafruit_requests.Session(pool, ssl_context)
 print("Defining functions...")
 
 def blink_every_second():
-    global counter
-    counter += 1
-    if counter % 100 == 0:
+    if counter_ms % 1000 == 0:
         led.value = True
-    if counter % 200 == 0:
+    if counter_ms % 2000 == 0:
         led.value = False
 
 
@@ -202,7 +208,6 @@ def switch_desk_lightbar(state):
         
 
 def switch_onair_light(state):
-    return # for now unused
     print(f"Sending POST to {hass_url+state}")
     response = requests.post(hass_url+state, json=hass_payload_onair_light, headers=hass_headers)
 
@@ -223,6 +228,7 @@ def check_desk_lightbar_switch():
         else:
             switch_desk_lightbar("off")
         desk_lightbar_switch_state = cur_desk_lightbar_switch_state
+
 
 def check_onair_light_switch():
     global onair_light_switch_state
@@ -245,13 +251,17 @@ def check_discord_action_button():
 
         discord_action_button_state = cur_discord_action_button_state
 
+
 def check_clip_button():
     global clip_button_state
     cur_clip_button_state = clip_button.value
     if cur_clip_button_state != clip_button_state:
         if not cur_clip_button_state:
-            kbd.send(Keycode.F21)
-            print("Sent clip F21!")
+            kbd.send(Keycode.F20)
+            print("Sent clip F20!")
+            rec_button_light.value = 1
+        if cur_clip_button_state:
+            rec_button_light.value = 0
 
         clip_button_state = cur_clip_button_state
 
@@ -272,6 +282,7 @@ def check_discord_mute_switch():
 
         discord_mute_switch_state = cur_discord_mute_switch_state
 
+
 def check_discord_deaf_switch():
     global discord_deaf_switch_state, discord_state
     cur_discord_deaf_switch_state = discord_deaf_switch.value
@@ -291,9 +302,44 @@ def check_discord_deaf_switch():
         discord_deaf_switch_state = cur_discord_deaf_switch_state
 
 
-# ============== MAIN LOOP ============
-print("Starting main loop...")
+def check_rec_button():
+    global rec_button_state, rec_button_light_blinking
+    cur_rec_button_state = rec_button.value
+    if cur_rec_button_state != rec_button_state:
+        if cur_rec_button_state:
+            kbd.send(Keycode.F22)
+            print("Sent rec end F22!")
+            rec_button_light.value = 0
+            rec_button_light_blinking = False
 
+
+        if not cur_rec_button_state:
+            kbd.send(Keycode.F21)
+            print("Sent rec start F21!")
+            rec_button_light.value = 1
+            rec_button_light_blinking = True
+
+
+        rec_button_state = cur_rec_button_state
+
+
+def blink_rec_button():
+    if counter_ms % 1000 == 0:
+        rec_button_light.value = 1
+    if counter_ms % 2000 == 0:
+        rec_button_light.value = 0
+    
+
+# ============== MAIN LOOP ============
+print("Blinking to indicate startup complete...")
+for i in range(5):
+    rec_button_light.value = 1
+    time.sleep(0.1)
+    rec_button_light.value = 0
+    time.sleep(0.1)
+
+
+print("Main loop running!")
 while True:
     check_mic_select_switch()
     check_mics_mute_switch()
@@ -303,8 +349,15 @@ while True:
     check_clip_button()
     check_discord_mute_switch()
     check_discord_deaf_switch()
+    check_rec_button()
+
+    if rec_button_light_blinking:
+        blink_rec_button()
+
 
     blink_every_second()
+
+    counter_ms += 1000 / polling_rate_hz
 
     time.sleep(1 / polling_rate_hz)
     

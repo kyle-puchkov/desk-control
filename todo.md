@@ -1,3 +1,8 @@
+# The Checklist
+
+Please view this list in raw code, otherwise "+" and "-" that I used for the checklist won't render properly
+
+## Main stuff:
 + DESK switch
 + ONAIR switch
 + hass calls for light DESK and ONAIR signs
@@ -6,20 +11,22 @@
 + discord mode 3pos switch
 + discord leave call/start stream push button
 + CLIP moment push button
-- REC-ording toggle button (needs code)
-- REC-ording light (need to add a MOSFET)
-- PC PWR button and light (mobo - jst side only)
++ REC-ording toggle button (needs code)
++ REC-ording light (need to add a MOSFET)
++ PC PWR button and light (mobo - jst side only)
 
+## Quality of Life:
 - make a back cover
 - add colored labels to submodules
-- redo screws + nuts that connect modules
 
+## Post production:
 - upload CAD files of modules
 - write docs for voicemeeter + discord bindings
 
 - write a dev blog post (maybe)
 
-FOR V2:
+## Plans & Ideas for V2:
+- redo screws + nuts that connect modules
 - move recording button up - its nut gets in the way when inserting the submodule
 - add led indicators for button/switch states
 - move the jst connectors
@@ -30,4 +37,4 @@ FOR V2:
 - make it disable storage when connecting and have it be reenable-able when shorting GP1 and GND to edit code
 - refactor
 
-last updated 29.07.2025 @ 03:39
+last updated 29.07.2025 @ 23:23
