@@ -1,1 +1,3 @@
 adafruit_hid
+adafruit_connection_manager
+adafruit_requests
